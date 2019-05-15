@@ -1,41 +1,60 @@
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Vim syntax file
+"
+" Language: javascript.jsx
+" Maintainer: MaxMellon <maxmellon1994@gmail.com>
+"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" based on mxw/vim-jsx
+let s:jsx_cpo = &cpo
+set cpo&vim
+
+syntax case match
 
 if exists('b:current_syntax')
-  let s:current_syntax=b:current_syntax
+  let s:current_syntax = b:current_syntax
   unlet b:current_syntax
 endif
-syn include @XMLSyntax syntax/xml.vim
+
 if exists('s:current_syntax')
-  let b:current_syntax=s:current_syntax
+  let b:current_syntax = s:current_syntax
 endif
 
-" JSX attributes should color as JS.  Note the trivial end pattern; we let
-" jsBlock take care of ending the region.
-syn region xmlString contained start=+{+ end=++ contains=jsBlock,javascriptBlock
+if hlexists("jsNoise")    " pangloss/vim-javascript
+  syntax cluster jsExpression add=jsxRegion
+elseif hlexists("javascriptOpSymbols")    " othree/yajs.vim
+  " refine the javascript line comment
+  syntax region javascriptLineComment start=+//+ end=/$/ contains=@Spell,javascriptCommentTodo extend keepend
+  syntax cluster javascriptValue add=jsxRegion
+  syntax cluster javascriptNoReserved add=jsxElement,jsxTag
 
-" JSX child blocks behave just like JSX attributes, except that (a) they are
-" syntactically distinct, and (b) they need the syn-extend argument, or else
-" nested XML end-tag patterns may end the outer jsxRegion.
-syn region jsxChild contained start=+{+ end=++ contains=jsBlock,javascriptBlock
-  \ extend
+  " add support to arrow function which returns a tagged template string, e.g.
+  " () => html`<div></div>`
+  syntax cluster afterArrowFunc add=javascriptTagRef
+else    " build-in javascript syntax
+  " refine the javascript line comment
+  syntax region javaScriptLineComment start=+//+ end=/$/ contains=@Spell,javascriptCommentTodo extend keepend
+  " add a javaScriptBlock group for build-in syntax
+  syntax region javaScriptBlockBuildIn
+        \ contained
+        \ matchgroup=javaScriptBraces
+        \ start="{"
+        \ end="}"
+        \ extend
+        \ contains=javaScriptBlockBuildIn,@javaScriptEmbededExpr,javaScript.*
+        \ fold
+  syntax cluster javaScriptEmbededExpr add=jsxRegion
 
-" Highlight JSX regions as XML; recursively match.
-"
-" Note that we prohibit JSX tags from having a < or word character immediately
-" preceding it, to avoid conflicts with, respectively, the left shift operator
-" and generic Flow type annotations (http://flowtype.org/).
-syn region jsxRegion
-  \ contains=@Spell,@XMLSyntax,jsxRegion,jsxChild,jsBlock,javascriptBlock
-  \ start=+\%(<\|\w\)\@<!<\z([a-zA-Z][a-zA-Z0-9:\-.]*\)+
-  \ skip=+<!--\_.\{-}-->+
-  \ end=+</\z1\_\s\{-}>+
-  \ end=+/>+
-  \ keepend
-  \ extend
+  " refine the template string syntax
+  syntax region javaScriptStringT start=+`+ skip=+\\\\\|\\`+ end=+`+ contains=javaScriptSpecial,javaScriptEmbed,@htmlPreproc extend
+  syntax region javaScriptEmbed matchgroup=javaScriptEmbedBraces start=+\${+ end=+}+ contained contains=@javaScriptEmbededExpr,javaScript.*
+endif
 
-" Add jsxRegion to the lowest-level JS syntax cluster.
-syn cluster jsExpression add=jsxRegion
+" because this is autoloaded, when developing you're going to need to source
+" the autoload/jsx_pretty/*.vim file manually, or restart vim
+call jsx_pretty#syntax#highlight()
 
-" Allow jsxRegion to contain reserved words.
-syn cluster javascriptNoReserved add=jsxRegion
+let b:current_syntax = 'javascript.jsx'
+
+let &cpo = s:jsx_cpo
+unlet s:jsx_cpo
